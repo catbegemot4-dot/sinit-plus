@@ -1,39 +1,30 @@
-include config.mk
+# thank you sinit
+# based on sinit
+# sinit+ - tiny init
+PREFIX   = /usr/local
+CC       = cc
+CPPFLAGS = -D_DEFAULT_SOURCE
+CFLAGS   = -std=c99 -Wall -Wextra -pedantic -Os
+# static: init must not depend on the dynamic loader or shared libs
+LDFLAGS  = -s -static
 
-OBJ = sinit.o
-BIN = sinit
+all: sinit
 
-all: $(BIN)
+config.h:
+	cp config.def.h $@
 
-$(BIN): $(OBJ)
-	$(CC) $(LDFLAGS) -o $@ $(OBJ) $(LDLIBS)
-
-$(OBJ): config.h
-
-install: all
-	mkdir -p $(DESTDIR)$(PREFIX)/bin
-	cp -f $(BIN) $(DESTDIR)$(PREFIX)/bin
-	mkdir -p $(DESTDIR)$(MANPREFIX)/man8
-	sed "s/VERSION/$(VERSION)/g" < $(BIN).8 > $(DESTDIR)$(MANPREFIX)/man8/$(BIN).8
-
-uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/bin/$(BIN)
-	rm -f $(DESTDIR)$(MANPREFIX)/man8/$(BIN).8
-
-dist: clean
-	mkdir -p sinit-$(VERSION)
-	cp LICENSE Makefile README config.def.h config.mk sinit.8 sinit.c sinit-$(VERSION)
-	tar -cf sinit-$(VERSION).tar sinit-$(VERSION)
-	gzip sinit-$(VERSION).tar
-	rm -rf sinit-$(VERSION)
+sinit: sinit.c config.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ sinit.c $(LDFLAGS)
 
 clean:
-	rm -f $(BIN) $(OBJ) sinit-$(VERSION).tar.gz
+	rm -f sinit
 
-.SUFFIXES: .def.h
+install: sinit
+	mkdir -p $(DESTDIR)$(PREFIX)/sbin
+	cp -f sinit $(DESTDIR)$(PREFIX)/sbin/
+	chmod 755 $(DESTDIR)$(PREFIX)/sbin/sinit
 
-.def.h.h:
-	cp $< $@
+uninstall:
+	rm -f $(DESTDIR)$(PREFIX)/sbin/sinit
 
-.PHONY:
-	all install uninstall dist clean
+.PHONY: all clean install uninstall
