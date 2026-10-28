@@ -1,0 +1,7 @@
+#!/bin/sh
+# Test rc.shutdown: gets "reboot" or "poweroff" as $1.
+echo "[rc.shutdown] requested action: $1"
+echo "[rc.shutdown] stopping things... (sleep 1)"
+sleep 1
+echo "[rc.shutdown] done, sinit will now kill the rest and call reboot(2)"
+exit 0
