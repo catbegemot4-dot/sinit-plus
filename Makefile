@@ -16,6 +16,9 @@ config.h:
 sinit: sinit.c config.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ sinit.c $(LDFLAGS)
 
+test:
+	sh test/run.sh
+
 clean:
 	rm -f sinit
 
@@ -27,4 +30,4 @@ install: sinit
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/sbin/sinit
 
-.PHONY: all clean install uninstall
+.PHONY: all test clean install uninstall
