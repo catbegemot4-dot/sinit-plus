@@ -1,0 +1,14 @@
+#!/bin/sh
+# Test rc.init: runs as a child of sinit (PID 1 of the test namespace).
+echo "[rc.init] started, my PID is $$, parent (sinit) is PID $PPID"
+echo "[rc.init] processes visible in this namespace:"
+ps -e -o pid,ppid,comm 2>/dev/null || echo "(ps not available)"
+
+# Self-test: ask init to reboot after a few seconds, so the whole
+# lifecycle (respawn -> SIGTERM -> rc.shutdown -> native finish) is checked.
+# Set SINIT_TEST_MANUAL=1 to skip it and send signals yourself.
+if [ -z "$SINIT_TEST_MANUAL" ]; then
+	( sleep 6; echo "[rc.init] sending SIGTERM to init (= reboot)"; kill -TERM 1 ) &
+fi
+echo "[rc.init] done, exiting (respawn services start now)"
+exit 0
