@@ -1,0 +1,116 @@
+.Dd October 28, 2026
+.Dt SINIT 8
+.Os
+.Sh NAME
+.Nm sinit
+.Nd tiny init
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+.Nm
+is a minimal init for Linux and BSD, an improved version of the sinit
+from suckless.org.
+It must run as PID 1 and exits with status 1 otherwise.
+.Pp
+On startup
+.Nm
+changes the working directory to
+.Pa / ,
+makes sure that file descriptors 0, 1 and 2 are open
+.Pq Pa /dev/console ,
+falling back to
+.Pa /dev/null ,
+sets
+.Ev PATH
+if it is unset, blocks all signals and runs the init command
+.Pq Pa /bin/rc.init
+in a new session.
+After that it waits for signals and reaps zombie processes.
+As a safety net, zombies are also reaped every 30 seconds.
+.Sh SIGNALS
+.Bl -tag -width "SIGUSR1, SIGUSR2, SIGPWR"
+.It Dv SIGUSR1 , Dv SIGUSR2 , Dv SIGPWR
+Power off the system.
+Runs
+.Pa /bin/rc.shutdown poweroff .
+.It Dv SIGTERM , Dv SIGINT
+Reboot the system.
+Runs
+.Pa /bin/rc.shutdown reboot .
+On Linux
+.Dv SIGINT
+is sent by the kernel on Ctrl-Alt-Del when the
+.Sy MOD_CAD
+module is enabled.
+.It Dv SIGCHLD
+Reap terminated children.
+.El
+.Pp
+All other signals are ignored.
+While a shutdown is in progress further shutdown requests are ignored.
+.Sh MODULES
+Modules are enabled at compile time in
+.Pa config.h .
+With no modules enabled
+.Nm
+behaves like the original sinit.
+.Bl -tag -width "MOD_NATIVE_SHUTDOWN"
+.It Sy MOD_NATIVE_SHUTDOWN
+When the shutdown command exits, fails to start, or does not finish within
+.Dv SHUTDOWN_TIMEO
+seconds,
+.Nm
+sends
+.Dv SIGTERM
+to all processes, waits up to
+.Dv KILL_TIMEO
+seconds, sends
+.Dv SIGKILL ,
+calls
+.Xr sync 2
+and then
+.Xr reboot 2 .
+The shutdown script no longer needs to power the machine off itself.
+.It Sy MOD_CAD
+Disables the kernel's immediate reset on Ctrl-Alt-Del
+.Pq Linux ,
+so that it is delivered as
+.Dv SIGINT .
+.It Sy MOD_RESCUE
+If the init command fails to start or exits with a non-zero status, a
+rescue shell is started instead of leaving the system without a console.
+.It Sy MOD_RESPAWN
+Keeps a list of services running, for example
+.Xr getty 8 .
+Services are started after the init command has exited and restarted when
+they die, at most once every
+.Dv RESPAWN_DELAY
+seconds.
+.El
+.Sh FILES
+.Bl -tag -width "/bin/rc.shutdown"
+.It Pa /bin/rc.init
+Run once at boot.
+Should mount filesystems and start daemons, then exit.
+.It Pa /bin/rc.shutdown
+Run on poweroff and reboot with the argument
+.Ar poweroff
+or
+.Ar reboot .
+Should stop daemons and unmount filesystems.
+.It Pa config.h
+Compile-time configuration: commands, modules and timeouts.
+.El
+.Pp
+The paths above are the defaults from
+.Pa config.def.h .
+.Sh EXIT STATUS
+.Nm
+exits with status 1 if it was not started as PID 1.
+Otherwise it never exits.
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr reboot 2 ,
+.Xr sync 2
+.Sh AUTHORS
+Based on sinit from suckless.or
