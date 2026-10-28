@@ -1,26 +1,88 @@
-sinit - suckless init
-=====================
+sinit+ - tiny init
+==================
+sinit+ is an improved sinit (suckless.org): a minimal init for Linux and BSD
+in about 340 lines of C. It runs rc.init at boot, reaps zombies, and runs
+rc.shutdown on poweroff and reboot. Everything extra is an optional module
+that is compiled in only if you enable it.
 
-sinit is a simple init.  It was initially based on
-Rich Felker's minimal init[1].
+An old sinit config.h works unchanged; all modules are then off.
 
-Why?
-----
 
-I wanted to get rid of Busybox init on my toy distro[2].
+What is new compared to sinit
+-----------------------------
+Core fixes (always on):
+ - sigtimedwait() instead of alarm()+sigwait(); no unchecked return values
+ - fds 0, 1, 2 are always open (/dev/console, else /dev/null)
+ - PATH is set if the kernel did not pass one
+ - SIGTERM, SIGUSR2 and SIGPWR are handled too (busybox compatible)
+ - a hung rc.shutdown is cut off after SHUTDOWN_TIMEO seconds
+ - repeated shutdown requests are ignored while one is running
 
-How?
-----
+Modules (config.h, 1 = on):
+ MOD_NATIVE_SHUTDOWN  after rc.shutdown: SIGTERM, SIGKILL, sync, reboot(2)
+ MOD_CAD              Linux: Ctrl-Alt-Del -> SIGINT instead of hard reset
+ MOD_RESCUE           run a rescue shell if rc.init fails
+ MOD_RESPAWN          keep services (getty, ...) alive, rate limited
 
-There are 3 signals that sinit will act on.
 
-      SIGUSR1: powers off the machine.
-      SIGINT:  reboots the machine (or alternatively via ctrl-alt-del).
-      SIGCHLD: reap children
+Signals
+-------
+ SIGUSR1, SIGUSR2, SIGPWR   poweroff   (rc.shutdown poweroff)
+ SIGTERM, SIGINT            reboot     (rc.shutdown reboot)
+ SIGCHLD                    reap children
 
-To see how sinit integrates with the init scripts, then have
-a look at [3].
+Examples:
+	kill -USR2 1     # poweroff
+	kill -TERM 1     # reboot
 
-[1] https://gist.github.com/rofl0r/6168719
-[2] http://git.2f30.org/morpheus/
-[3] http://git.2f30.org/ports/tree/fs/
+
+Requirements
+------------
+A C99 compiler and a POSIX system. MOD_NATIVE_SHUTDOWN and MOD_CAD need
+<sys/reboot.h> (Linux, BSD). Build with musl for a ~20 KB static binary.
+
+
+Installation
+------------
+Edit config.def.h, copy it to config.h if you want a custom one, then:
+
+	make
+	make install            # installs to /usr/local/sbin
+
+Test it first (see below), then boot it with the kernel parameter
+init=/usr/local/sbin/sinit. Keep your old init as a fallback entry in the
+bootloader until you are sure that rc.init and rc.shutdown work.
+
+
+Testing (safe, no VM needed)
+----------------------------
+	make test
+
+This builds sinit+ with test/config.h and runs it as PID 1 inside its own
+PID namespace, with demo rc.init / rc.shutdown scripts. It walks through the
+whole life cycle: rc.init, a respawned service, SIGTERM, rc.shutdown, the
+native kill/sync step and reboot(2). reboot(2) inside a PID namespace only
+ends that namespace, so the real system is never touched (and sinit refuses
+to run unless it is PID 1 anyway).
+
+Needs a C compiler and util-linux "unshare". Runs as root, or as a normal
+user if unprivileged user namespaces are enabled. On Ubuntu 24.04 and newer
+they may be restricted; then run it with sudo.
+
+Manual mode: SINIT_TEST_MANUAL=1 make test, then from another terminal:
+	kill -USR2 $(pgrep -x sinit)     # poweroff, exit status 130
+	kill -TERM $(pgrep -x sinit)     # reboot,   exit status 129
+
+
+Notes
+-----
+ - MOD_RESPAWN services start only after rc.init has exited. If your rc.init
+   stays running, they will not start.
+ - rc.init and rc.shutdown are plain scripts you write yourself; see
+   config.def.h for the default paths.
+ - Manual: man ./sinit.8
+
+
+License
+-------
+See LICENSE. The copyright of the original sinit authors is preserved.
